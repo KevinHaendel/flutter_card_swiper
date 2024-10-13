@@ -96,6 +96,41 @@ class _CardSwiperState<T extends Widget> extends State<CardSwiper>
   }
 
   Widget _frontItem(BoxConstraints constraints) {
+    void onDragStart(DragStartDetails tapInfo) {
+      if (!widget.isDisabled) {
+        final renderBox = context.findRenderObject()! as RenderBox;
+        final position = renderBox.globalToLocal(tapInfo.globalPosition);
+
+        if (position.dy < renderBox.size.height / 2) _tappedOnTop = true;
+      }
+    }
+
+    void onDragUpdate(DragUpdateDetails tapInfo) {
+      if (!widget.isDisabled) {
+        setState(
+              () => _cardAnimation.update(
+            tapInfo.delta.dx,
+            tapInfo.delta.dy,
+            _tappedOnTop,
+          ),
+        );
+      }
+    }
+
+    void onDragEnd(DragEndDetails tapInfo) {
+      if (_canSwipe) {
+        _tappedOnTop = false;
+        _onEndAnimation();
+      }
+    }
+
+    final horizontalAllowed = widget.allowedSwipeDirection.left || widget.allowedSwipeDirection.right;
+    final verticalAllowed = widget.allowedSwipeDirection.up || widget.allowedSwipeDirection.down;
+
+    final horizontalOnly = horizontalAllowed && !verticalAllowed;
+    final verticalOnly = !horizontalAllowed && verticalAllowed;
+    final allDirections = horizontalAllowed == verticalAllowed;
+
     return Positioned(
       left: _cardAnimation.left,
       top: _cardAnimation.top,
@@ -117,31 +152,15 @@ class _CardSwiperState<T extends Widget> extends State<CardSwiper>
             await widget.onTapDisabled?.call();
           }
         },
-        onPanStart: (tapInfo) {
-          if (!widget.isDisabled) {
-            final renderBox = context.findRenderObject()! as RenderBox;
-            final position = renderBox.globalToLocal(tapInfo.globalPosition);
-
-            if (position.dy < renderBox.size.height / 2) _tappedOnTop = true;
-          }
-        },
-        onPanUpdate: (tapInfo) {
-          if (!widget.isDisabled) {
-            setState(
-              () => _cardAnimation.update(
-                tapInfo.delta.dx,
-                tapInfo.delta.dy,
-                _tappedOnTop,
-              ),
-            );
-          }
-        },
-        onPanEnd: (tapInfo) {
-          if (_canSwipe) {
-            _tappedOnTop = false;
-            _onEndAnimation();
-          }
-        },
+        onPanStart: allDirections ? onDragStart : null,
+        onPanUpdate: allDirections ? onDragUpdate : null,
+        onPanEnd: allDirections ? onDragEnd : null,
+        onHorizontalDragStart: horizontalOnly ? onDragStart : null,
+        onHorizontalDragUpdate: horizontalOnly ? onDragUpdate : null,
+        onHorizontalDragEnd: horizontalOnly ? onDragEnd : null,
+        onVerticalDragStart: verticalOnly ? onDragStart : null,
+        onVerticalDragUpdate: verticalOnly ? onDragUpdate : null,
+        onVerticalDragEnd: verticalOnly ? onDragEnd : null,
       ),
     );
   }
